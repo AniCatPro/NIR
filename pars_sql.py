@@ -1,3 +1,8 @@
+#Afanasev P.Y.
+#26.02.2025
+
+#Код парсит данные с Avito в SQLite
+
 import sqlite3
 import random
 import time
@@ -10,7 +15,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import StaleElementReferenceException
 
 
-# Функции для безопасного преобразования значений
 def safe_float(value, default=0.0):
     try:
         return float(value.replace('\xa0', '').replace(',', '.')) if value else default
@@ -25,7 +29,6 @@ def safe_int(value, default=0):
         return default
 
 
-# Функция создания БД
 def create_database(db_name="real_estate.db"):
     connection = sqlite3.connect(db_name)
     cursor = connection.cursor()
@@ -51,10 +54,9 @@ def create_database(db_name="real_estate.db"):
     connection.close()
 
 
-# Функция парсинга объявления
 def parse_ad(driver, url):
     driver.get(url)
-    time.sleep(2)  # Даем время для загрузки страницы
+    time.sleep(3)  # Даем время для загрузки страницы
     try:
         price = driver.find_element(By.CSS_SELECTOR, 'span[itemprop="price"]').get_attribute("content")
     except:
@@ -92,7 +94,6 @@ def parse_ad(driver, url):
         condition = "Неизвестно"
     try:
         title = driver.find_element(By.CSS_SELECTOR, 'h1[data-marker="item-view/title-info"]').text
-        # Берем только текст после пробела
         if ',' in title:
             type_ = title.split(",")[0].split(".")[-1].strip()
         else:
@@ -110,7 +111,6 @@ def parse_ad(driver, url):
             safe_int(year), 0, balcony, condition, type_, district, url)
 
 
-# Функция сохранения в БД
 def save_to_db(data, db_name="real_estate.db"):
     connection = sqlite3.connect(db_name)
     cursor = connection.cursor()
@@ -125,7 +125,6 @@ def save_to_db(data, db_name="real_estate.db"):
     connection.close()
 
 
-# Основная функция парсинга
 def main():
     base_url = "https://www.avito.ru/barnaul/kvartiry/prodam-ASgBAgICAUSSA8YQ?p="
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
@@ -156,7 +155,7 @@ def main():
             print("На странице нет объявлений или произошла ошибка загрузки.")
             continue
 
-        # Берем 2 случайных объявления
+        # Берем N кол-во случайных объявлений
         random.shuffle(ads)
         ads = ads[:2] if len(ads) >= 2 else ads
 
@@ -170,7 +169,7 @@ def main():
                 save_to_db(data)
                 ads_collected += 1
             except StaleElementReferenceException:
-                print("StaleElementReferenceException: элемент стал недоступен. Пропускаем этот элемент.")
+                print("Элемент стал недоступен. Пропускаем этот элемент.") #StaleElementReferenceException
                 continue
 
         if ads_collected >= 2:
