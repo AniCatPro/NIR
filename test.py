@@ -1,9 +1,4 @@
-#Afanasev P.Y.
-#26.02.2025
-
-#Код анализирует данные на основе SQL и моделирует зависимость цены
-#недвижимости от различных факторов
-
+import sqlite3
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -13,21 +8,15 @@ from scipy.stats import pearsonr
 from sklearn.linear_model import LinearRegression
 from IPython.display import display, Markdown
 
-# Создание искусственного набора данных
-np.random.seed(42)  # Для воспроизводимости
-num_samples = 100  # Вы можете регулировать количество данных
+# Подключение к базе данных SQLite
+conn = sqlite3.connect('real_estate.db')
 
-total_area = np.random.uniform(20, 100, num_samples)
-floor = np.random.randint(1, 10, num_samples)
-year = np.random.randint(1900, 2021, num_samples)
-price = 50 * total_area + 1000 * floor + 0.5 * year + np.random.normal(scale=10000, size=num_samples)
-
-df = pd.DataFrame({
-    'total_area': total_area,
-    'floor': floor,
-    'year': year,
-    'price': price
-})
+# Запрос данных из базы данных
+query = """
+SELECT price, total_area, floor, distance 
+FROM properties
+"""
+df = pd.read_sql(query, conn)
 
 # Общая информация о данных
 df.info()
@@ -35,9 +24,8 @@ display(df.head(), df.tail())
 print(df.describe())
 
 # Вычисление статистик
-numeric_columns = df.select_dtypes(include=[np.number]).columns
-print("Среднее значение:", df[numeric_columns].mean())
-print("Медиана:", df[numeric_columns].median())
+print("Среднее значение:", df.mean())
+print("Медиана:", df.median())
 print("Размах выборки (max - min):", df['price'].max() - df['price'].min())
 print("Квартили:", df['price'].quantile([0.25, 0.5, 0.75]))
 
@@ -63,7 +51,7 @@ plt.title('Диаграмма рассеяния цены и площади')
 plt.show()
 
 # Корреляционный анализ
-corr_matrix = df[['price', 'floor', 'year']].corr()
+corr_matrix = df[['price', 'floor', 'distance']].corr()
 plt.figure(figsize=(12, 10))
 sns.heatmap(corr_matrix, annot=True, cmap='YlOrRd')
 plt.title('Матрица корреляций')
@@ -72,14 +60,13 @@ plt.show()
 corr, p_value = pearsonr(df['price'], df['floor'])
 print(f"Коэффициент корреляции Пирсона: {corr:.2f}")
 print(f"p-значение: {p_value:.4f}")
-
 if p_value < 0.05:
     print("Корреляция статистически значима на уровне 5%")
 else:
     print("Корреляция не является статистически значимой на уровне 5%")
 
 # Множественная линейная регрессия
-X = df[['total_area', 'floor', 'year']]
+X = df[['total_area', 'floor', 'distance']]
 y = df['price']
 model = LinearRegression()
 model.fit(X, y)
@@ -88,8 +75,8 @@ X_const = sm.add_constant(X)
 results = sm.OLS(y, X_const).fit()
 
 # Вывод уравнения регрессии
-equation = f'y = {results.params.iloc[0]:.2f}'
-for i, coef in enumerate(results.params.iloc[1:]):
+equation = f'y = {results.params.iloc[0]:.2f}'  # Используем .iloc для первого элемента
+for i, coef in enumerate(results.params.iloc[1:]):  # Тоже изменяем на .iloc
     factor_name = X.columns[i]
     equation += f' + {coef:.2f} * {factor_name}'
 display(Markdown(f'**Уравнение регрессии:**\n{equation}'))
@@ -103,8 +90,7 @@ results_df = pd.DataFrame({
     'p-value': results.pvalues.values
 })
 display(results_df)
-
-for i, p_value in enumerate(results_df['p-value'].iloc[1:]):
+for i, p_value in enumerate(results_df['p-value'][1:]):
     if p_value > 0.05:
         print(f"Коэффициент при {results_df.loc[i+1, 'Фактор']} статистически незначим")
 
