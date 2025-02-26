@@ -105,6 +105,7 @@ def parse_ad(driver, url):
                                        'span.style-item-address-georeferences-item-TZsrp').text.replace("р-н ", "")
     except:
         district = "Неизвестно"
+
     print(
         f"DEBUG: {price}, {total_area}, {living_area}, {rooms}, {floor}, {total_floors}, {year}, {balcony}, {condition}, {type_}, {district}, {url}")
     return (safe_float(price), safe_float(total_area), safe_float(living_area), safe_int(rooms), floor, total_floors,
@@ -139,13 +140,14 @@ def main():
         total_pages = 10
     print(f"Всего страниц: {total_pages}")
 
-    ads_collected = 0
+    pages_parsed = 0  # Используем для подсчета страниц
+    max_pages = 15  # Установите количество страниц, которое хотите обработать
 
-    while ads_collected < 2:
+    while pages_parsed < max_pages:
         random_page = random.randint(1, total_pages)
         print(f"Открываем страницу {random_page}...")
         driver.get(base_url + str(random_page))
-        time.sleep(3)
+        time.sleep(2)
 
         try:
             ads = WebDriverWait(driver, 10).until(
@@ -167,13 +169,10 @@ def main():
                 print(f"Парсим {link}...")
                 data = parse_ad(driver, link)
                 save_to_db(data)
-                ads_collected += 1
             except StaleElementReferenceException:
-                print("Элемент стал недоступен. Пропускаем этот элемент.") #StaleElementReferenceException
-                continue
+                print("Элемент стал недоступен. Пропускаем этот элемент.")
 
-        if ads_collected >= 2:
-            break
+        pages_parsed += 1  # Увеличиваем счетчик после обработки страницы
 
     driver.quit()
 

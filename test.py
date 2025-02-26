@@ -4,7 +4,6 @@
 #Код анализирует данные на основе SQL и моделирует зависимость цены
 #недвижимости от различных факторов
 
-import sqlite3
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -14,15 +13,21 @@ from scipy.stats import pearsonr
 from sklearn.linear_model import LinearRegression
 from IPython.display import display, Markdown
 
-# Подключение к базе данных и чтение данных
-def load_data_from_db(db_name='real_estate.db', table_name='properties'):
-    conn = sqlite3.connect(db_name)
-    query = f"SELECT * FROM {table_name}"
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    return df
+# Создание искусственного набора данных
+np.random.seed(42)  # Для воспроизводимости
+num_samples = 100  # Вы можете регулировать количество данных
 
-df = load_data_from_db()
+total_area = np.random.uniform(20, 100, num_samples)
+floor = np.random.randint(1, 10, num_samples)
+year = np.random.randint(1900, 2021, num_samples)
+price = 50 * total_area + 1000 * floor + 0.5 * year + np.random.normal(scale=10000, size=num_samples)
+
+df = pd.DataFrame({
+    'total_area': total_area,
+    'floor': floor,
+    'year': year,
+    'price': price
+})
 
 # Общая информация о данных
 df.info()
