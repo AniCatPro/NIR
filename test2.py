@@ -1,12 +1,12 @@
 import sqlite3
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
-from scipy.stats import pearsonr
 import matplotlib.pyplot as plt
 import seaborn as sns
 import statsmodels.api as sm
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from scipy.stats import pearsonr
 from IPython.display import display, Markdown
 
 # Функция для извлечения данных из базы данных
@@ -54,13 +54,57 @@ df['price'].plot(kind='box', figsize=(8, 6))
 plt.title('Диаграмма размаха цен на квартиры')
 plt.show()
 
-# Диаграмма рассеяния площади и цены
-plt.figure(figsize=(8, 6))
+# Шесть диаграмм рассеяния
+plt.figure(figsize=(14, 10))
+
+plt.subplot(3, 2, 1)
 sns.scatterplot(x='square', y='price', data=df)
 plt.xlabel('Площадь')
 plt.ylabel('Цена')
-plt.title('Диаграмма рассеяния цены и площади')
+plt.title('Цена и Площадь')
+
+plt.subplot(3, 2, 2)
+sns.scatterplot(x='floor', y='price', data=df)
+plt.xlabel('Этаж')
+plt.ylabel('Цена')
+plt.title('Цена и Этаж')
+
+plt.subplot(3, 2, 3)
+sns.scatterplot(x='log_distance', y='price', data=df)
+plt.xlabel('Логарифм расстояния')
+plt.ylabel('Цена')
+plt.title('Цена и Логарифм расстояния')
+
+plt.subplot(3, 2, 4)
+sns.scatterplot(x='floor', y='square', data=df)
+plt.xlabel('Этаж')
+plt.ylabel('Площадь')
+plt.title('Площадь и Этаж')
+
+plt.subplot(3, 2, 5)
+sns.scatterplot(x='log_distance', y='square', data=df)
+plt.xlabel('Логарифм расстояния')
+plt.ylabel('Площадь')
+plt.title('Площадь и Логарифм расстояния')
+
+plt.subplot(3, 2, 6)
+sns.scatterplot(x='log_distance', y='floor', data=df)
+plt.xlabel('Логарифм расстояния')
+plt.ylabel('Этаж')
+plt.title('Этаж и Логарифм расстояния')
+
+plt.tight_layout()
 plt.show()
+
+# Анализ статистической значимости корреляции
+features = ['square', 'floor', 'log_distance']
+for feature in features:
+    corr, p_value = pearsonr(df['price'], df[feature])
+    print(f"Корреляция (цена и {feature}): {corr:.2f}, p-значение: {p_value:.4f}")
+    if p_value < 0.05:
+        print("Значимая зависимость на уровне 5%.")
+    else:
+        print("Нет значимой зависимости на уровне 5%.")
 
 # Матрица корреляций
 corr_matrix = df[['price', 'floor', 'log_distance']].corr()
@@ -69,14 +113,30 @@ sns.heatmap(corr_matrix, annot=True, cmap='YlOrRd')
 plt.title('Матрица корреляций')
 plt.show()
 
-# Коэффициент корреляции Пирсона
-corr, p_value = pearsonr(df['price'], df['floor'])
-print(f"Коэффициент корреляции Пирсона: {corr:.2f}")
-print(f"p-значение: {p_value:.4f}")
-if p_value < 0.05:
-    print("Корреляция статистически значима на уровне 5%")
-else:
-    print("Корреляция не является статистически значимой на уровне 5%")
+# Определяем y
+y = df['price']
+
+# Регрессионные модели
+models = [
+    ('Model 1', df[['square', 'floor']]),
+    ('Model 2', df[['square', 'log_distance']]),
+    ('Model 3', df[['floor', 'log_distance']]),
+    ('Model 4', df[['square', 'floor', 'log_distance']]),
+    ('Model 5', df[['log_distance']])
+]
+
+for name, X in models:
+    # Добавляем константу
+    X_const = sm.add_constant(X)
+    # Обучаем модель
+    model = sm.OLS(y, X_const).fit()
+    print(f"Результаты для {name}:")
+    print(model.summary())
+    for i, p_value in enumerate(model.pvalues[1:]):
+        factor_name = X_const.columns[i+1]
+        if p_value > 0.05:
+            print(f"Коэффициент при {factor_name} является статистически незначимым при 5% уровне значимости.")
+    print("\n")
 
 # Полиномиальные признаки
 poly = PolynomialFeatures(degree=2, include_bias=False)
@@ -139,6 +199,5 @@ r_squared = model.score(X_poly, y)
 n = len(y)
 p = X_poly.shape[1]
 adjusted_r_squared = 1 - (1 - r_squared) * (n - 1) / (n - p - 1)
-
 print(f"R-squared: {r_squared:.3f}")
 print(f"Adjusted R-squared: {adjusted_r_squared:.3f}")
