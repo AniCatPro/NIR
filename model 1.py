@@ -116,53 +116,56 @@ plt.show()
 # Определяем y
 y = df['price']
 
-# Регрессионные модели
-models = [
-    ('Model 1', df[['square', 'floor']]),
-    ('Model 2', df[['square', 'log_distance']]),
-    ('Model 3', df[['floor', 'log_distance']]),
-    ('Model 4', df[['square', 'floor', 'log_distance']]),
-    ('Model 5', df[['log_distance']])
-]
+# Используем Model 1 для анализа: [square, floor]
+X = df[['square', 'floor']]
+X_const = sm.add_constant(X)
 
-for name, X in models:
-    # Добавляем константу
-    X_const = sm.add_constant(X)
-    # Обучаем модель
-    model = sm.OLS(y, X_const).fit()
-    print(f"Результаты для {name}:")
-    print(model.summary())
-    for i, p_value in enumerate(model.pvalues[1:]):
-        factor_name = X_const.columns[i+1]
-        if p_value > 0.05:
-            print(f"Коэффициент при {factor_name} является статистически незначимым при 5% уровне значимости.")
-    print("\n")
+# Обучаем Model 1
+model = sm.OLS(y, X_const).fit()
+print(model.summary())
 
-# Полиномиальные признаки
+# Гистограмма остатков для Model 1
+residuals = y - model.predict(X_const)
+plt.figure(figsize=(8, 6))
+plt.hist(residuals, bins=20)
+plt.title('Гистограмма распределения ошибок (Model 1)')
+plt.xlabel('Ошибка')
+plt.ylabel('Частота')
+plt.grid(True)
+plt.show()
+
+# Визуализация прогнозных и фактических значений
+plt.figure(figsize=(8, 6))
+plt.scatter(y, model.predict(X_const))
+plt.plot([min(y), max(y)], [min(y), max(y)], 'r--')
+plt.title('Прогнозные vs. Фактические значения (Model 1)')
+plt.xlabel('Фактические значения')
+plt.ylabel('Прогнозные значения')
+plt.grid(True)
+plt.show()
+
+# Полиномиальные признаки (если нужно)
 poly = PolynomialFeatures(degree=2, include_bias=False)
 X_poly = poly.fit_transform(df[['square', 'floor', 'log_distance']])
-y = df['price']
+model_poly = LinearRegression()
+model_poly.fit(X_poly, y)
 
-# Линейная регрессия
-model = LinearRegression()
-model.fit(X_poly, y)
-
-# Получение значений коэффициентов
-X_const = sm.add_constant(X_poly)
-results = sm.OLS(y, X_const).fit()
+# Оценка с использованием полиномиальных признаков
+X_const_poly = sm.add_constant(X_poly)
+results_poly = sm.OLS(y, X_const_poly).fit()
 
 # DataFrame с результатами
 results_df = pd.DataFrame({
-    'Фактор': ['Свободный член'] + list(results.params.index[1:]),
-    'Коэффициент': results.params.values,
-    'Стандартная ошибка': results.bse.values,
-    't-статистика': results.tvalues.values,
-    'p-value': results.pvalues.values
+    'Фактор': ['Свободный член'] + list(results_poly.params.index[1:]),
+    'Коэффициент': results_poly.params.values,
+    'Стандартная ошибка': results_poly.bse.values,
+    't-статистика': results_poly.tvalues.values,
+    'p-value': results_poly.pvalues.values
 })
 
 # Уравнение регрессии
-equation = f'y = {results.params.iloc[0]:.2f}'
-for i, coef in enumerate(results.params.iloc[1:]):
+equation = f'y = {results_poly.params.iloc[0]:.2f}'
+for i, coef in enumerate(results_poly.params.iloc[1:]):
     factor_name = results_df.loc[i+1, 'Фактор']
     equation += f' + {coef:.2f} * {factor_name}'
 display(Markdown(f'**Уравнение регрессии:**\n{equation}'))
@@ -173,31 +176,3 @@ for i, p_value in enumerate(results_df['p-value'][1:]):
     factor_name = results_df.loc[i+1, 'Фактор']
     if p_value > 0.05:
         print(f"Коэффициент при {factor_name} является статистически незначимым при 5% уровне значимости.")
-
-# Прогнозные и фактические значения
-plt.figure(figsize=(8, 6))
-plt.scatter(y, model.predict(X_poly))
-plt.plot([min(y), max(y)], [min(y), max(y)], 'r--')
-plt.title('Прогнозные vs. Фактические значения')
-plt.xlabel('Фактические значения')
-plt.ylabel('Прогнозные значения')
-plt.grid(True)
-plt.show()
-
-# Гистограмма ошибок
-plt.figure(figsize=(8, 6))
-residuals = y - model.predict(X_poly)
-plt.hist(residuals, bins=20)
-plt.title('Гистограмма распределения ошибок')
-plt.xlabel('Ошибка')
-plt.ylabel('Частота')
-plt.grid(True)
-plt.show()
-
-# Метрики модели
-r_squared = model.score(X_poly, y)
-n = len(y)
-p = X_poly.shape[1]
-adjusted_r_squared = 1 - (1 - r_squared) * (n - 1) / (n - p - 1)
-print(f"R-squared: {r_squared:.3f}")
-print(f"Adjusted R-squared: {adjusted_r_squared:.3f}")
